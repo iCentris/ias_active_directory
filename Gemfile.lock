@@ -3,7 +3,7 @@ PATH
   specs:
     ias_active_directory (0.1.0)
       bindata (~> 2)
-      net-ldap (~> 0)
+      net-ldap (~> 0.16.0)
 
 GEM
   remote: https://rubygems.org/
