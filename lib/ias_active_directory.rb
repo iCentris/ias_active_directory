@@ -4,11 +4,23 @@ require 'ias_active_directory/version'
 
 # External Gem Dependencies
 require 'net/ldap'
+require 'bindata'
+
+require 'ias_active_directory/sid'
+require 'ias_active_directory/base'
+
+# TODO: Add methods that return all the binary fields
 
 # IasActiveDirectory namespace
 # @!attribute special_fields
 #   A hash of the fields in ActiveDirectory that need to be handled as special cases
+# @!attribute known_binary_fields
+#   An array of the known special_fields which are of the Binary type
 module IasActiveDirectory
+  class << self
+    attr_accessor :special_fields, :known_binary_fields
+  end
+
   # Return the special fields module variable
   def self.special_fields
     @special_fields
@@ -63,4 +75,9 @@ module IasActiveDirectory
       member: :MemberDnArray
     }
   }
+
+  # Returns all the special fields that are marked as Binary
+  def self.known_binary_fields
+    @known_binary_fields ||= @special_fields.values.flat_map { |k| k.select { |_p, q| q == :Binary }.keys }.uniq.sort
+  end
 end

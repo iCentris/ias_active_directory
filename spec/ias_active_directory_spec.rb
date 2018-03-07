@@ -71,4 +71,10 @@ RSpec.describe IasActiveDirectory do
       end
     end
   end
+
+  describe 'concerning known_binary_fields' do
+    it 'knows the known_binary_fields from special_fields' do
+      expect(IasActiveDirectory.known_binary_fields).to match_array(%i[msexchmailboxguid msexchmailboxsecuritydescriptor objectguid objectsid])
+    end
+  end
 end
