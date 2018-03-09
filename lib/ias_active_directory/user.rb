@@ -33,7 +33,7 @@ module IasActiveDirectory
     def authenticate(password)
       return false if password.to_s.empty?
 
-      @ldap.dup.bind_as(
+      @@ldap.dup.bind_as(
         filter: "(sAMAccountName=#{sAMAccountName})",
         password: password
       )

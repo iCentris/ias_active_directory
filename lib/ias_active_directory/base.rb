@@ -16,21 +16,20 @@ module IasActiveDirectory
   # @!attribute types
   #   The types of objects
   class Base
-    class << self
-      attr_accessor :ldap, :ldap_connected, :caching, :cache, :settings, :types
-    end
+    # Class Variables, available to ALL subclasses
+    @@ldap           = nil
+    @@ldap_connected = false
+    @@caching        = false
+    @@cache          = {}
+
+    # Class Instance variable, private to Base
+    @types = {}
 
     # A Net::LDAP::Filter object that doesn't do any filtering
     # (outside of check that the CN attribute is present.  This
     # is used internally for specifying a 'no filter' condition
     # for methods that require a filter object.
     NIL_FILTER = Net::LDAP::Filter.pres('cn')
-
-    @ldap           = nil
-    @ldap_connected = false
-    @caching        = false
-    @cache          = {}
-    @types          = {}
 
     # Configures the connection for the Ruby/ActiveDirectory library.
     #
@@ -61,9 +60,9 @@ module IasActiveDirectory
     #
     # @param settings [Hash] The ActiveDirectory configuration hash
     def self.configure(settings)
-      @settings       = settings
-      @ldap_connected = false
-      @ldap           = ::Net::LDAP.new(settings)
+      @@settings       = settings
+      @@ldap_connected = false
+      @@ldap           = ::Net::LDAP.new(settings)
     end
 
     # ==============================================================================================
@@ -72,19 +71,19 @@ module IasActiveDirectory
 
     # Retrieve the Errors
     def self.error
-      "#{@ldap.get_operation_result.code}: #{@ldap.get_operation_result.message}"
+      "#{@@ldap.get_operation_result.code}: #{@@ldap.get_operation_result.message}"
     end
 
     # Return the last errorcode that ldap generated
     def self.error_code
-      @ldap.get_operation_result.code
+      @@ldap.get_operation_result.code
     end
 
     # Check to see if the last query produced an error
     # Note: Invalid username/password combinations will not
     # produce errors
     def self.error?
-      @ldap.nil? ? false : @ldap.get_operation_result.code != 0
+      @@ldap.nil? ? false : @@ldap.get_operation_result.code != 0
     end
 
     # ==============================================================================================
@@ -94,31 +93,31 @@ module IasActiveDirectory
     # Check to see if we are connected to the LDAP server
     # This method will try to connect, if we haven't already
     def self.connected?
-      @ldap_connected ||= @ldap.bind unless @ldap.nil?
-      @ldap_connected
+      @@ldap_connected ||= @@ldap.bind unless @@ldap.nil?
+      @@ldap_connected
     rescue ::Net::LDAP::LdapError
       false
     end
 
     # Check to see if result caching is enabled
     def self.cache?
-      @caching
+      @@caching
     end
 
     # Clears the cache
     def self.clear_cache
-      @cache = {}
+      @@cache = {}
     end
 
     # Enable caching for queries against the DN only
     # This is to prevent membership lookups from hitting the  AD unnecessarily
     def self.enable_cache
-      @caching = true
+      @@caching = true
     end
 
     # Disable caching
     def self.disable_cache
-      @caching = false
+      @@caching = false
     end
 
     # ==============================================================================================
@@ -160,7 +159,7 @@ module IasActiveDirectory
     # 'OldGroup_' exists.
     def self.exists?(filter_as_hash)
       criteria = make_filter_from_hash(filter_as_hash) & filter
-      @ldap.search(filter: criteria).!empty?
+      @@ldap.search(filter: criteria).!empty?
     end
 
     def self.make_filter_from_hash(hash) # :nodoc:
@@ -177,11 +176,11 @@ module IasActiveDirectory
 
     # Retrieve the record based on the DN
     def self.from_dn(dn)
-      ldap_result = @ldap.search(filter: '(objectClass=*)', base: dn)
+      ldap_result = @@ldap.search(filter: '(objectClass=*)', base: dn)
       return nil unless ldap_result
 
       ad_obj = new(ldap_result[0])
-      @cache[ad_obj.dn] = ad_obj unless ad_obj.instance_of?(Base)
+      @@cache[ad_obj.dn] = ad_obj unless ad_obj.instance_of?(Base)
       ad_obj
     end
 
@@ -220,7 +219,7 @@ module IasActiveDirectory
       cached_results = find_cached_results(args[1])
       return cached_results if cached_results || cached_results.nil?
 
-      options[:in] = [options[:in].to_s, @settings[:base]].delete_if(&:empty?).join(',')
+      options[:in] = [options[:in].to_s, @@settings[:base]].delete_if(&:empty?).join(',')
 
       if options[:filter].is_a? Hash
         options[:filter] = make_filter_from_hash(options[:filter])
@@ -252,7 +251,7 @@ module IasActiveDirectory
         result = []
 
         dns.each do |dn|
-          entry = @cache[dn]
+          entry = @@cache[dn]
 
           # If the object isn't in the cache just run the query
           return false if entry.nil?
@@ -263,19 +262,19 @@ module IasActiveDirectory
 
         return result
       else
-        return false unless @cache.key? dns
-        return @cache[dns] if @cache[dns].is_a? self
+        return false unless @@cache.key? dns
+        return @@cache[dns] if @@cache[dns].is_a? self
       end
     end
 
     # Find all records based on the options
     def self.find_all(options)
       results   = []
-      ldap_objs = @ldap.search(filter: options[:filter], base: options[:in]) || []
+      ldap_objs = @@ldap.search(filter: options[:filter], base: options[:in]) || []
 
       ldap_objs.each do |entry|
         ad_obj = new(entry)
-        @cache[entry.dn] = ad_obj unless ad_obj.instance_of? Base
+        @@cache[entry.dn] = ad_obj unless ad_obj.instance_of? Base
         results << ad_obj
       end
 
@@ -284,11 +283,11 @@ module IasActiveDirectory
 
     # Find the first record based on options
     def self.find_first(options)
-      ldap_result = @ldap.search(filter: options[:filter], base: options[:in])
+      ldap_result = @@ldap.search(filter: options[:filter], base: options[:in])
       return nil if ldap_result.empty?
 
-      ad_obj            = new(ldap_result[0])
-      @cache[ad_obj.dn] = ad_obj unless ad_obj.instance_of? Base
+      ad_obj = new(ldap_result[0])
+      @@cache[ad_obj.dn] = ad_obj unless ad_obj.instance_of? Base
       ad_obj
     end
 
@@ -332,7 +331,7 @@ module IasActiveDirectory
     def reload
       return false if new_record?
 
-      @entry = @ldap.search(filter: Net::LDAP::Filter.eq('distinguishedName', distinguishedName))[0]
+      @entry = @@ldap.search(filter: Net::LDAP::Filter.eq('distinguishedName', distinguishedName))[0]
       !@entry.nil?
     end
 
@@ -377,17 +376,17 @@ module IasActiveDirectory
       end
 
       unless operations.empty?
-        @ldap.modify(
+        @@ldap.modify(
           dn: distinguishedName,
           operations: operations
         )
       end
       if rename
-        @ldap.modify(
+        @@ldap.modify(
           dn: distinguishedName,
           operations: [[(name.nil? ? :add : :replace), 'samaccountname', attributes_to_update[:cn]]]
         )
-        @ldap.rename(olddn: distinguishedName, newrdn: 'cn=' + attributes_to_update[:cn], delete_attributes: true)
+        @@ldap.rename(olddn: distinguishedName, newrdn: 'cn=' + attributes_to_update[:cn], delete_attributes: true)
       end
       reload
     end
