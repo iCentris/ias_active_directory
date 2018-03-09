@@ -36,7 +36,7 @@ module IasActiveDirectory
     #
     # For example:
     #
-    #   ActiveDirectory::Base.setup(
+    #   ::IasActiveDirectory::Base.setup(
     #     host: 'domain_controller1.example.org',
     #     port: 389,
     #     base: 'dc=example,dc=org',
@@ -415,23 +415,23 @@ module IasActiveDirectory
     def self.get_field_type(name)
       # Extract class name
       throw 'Invalid field name' if name.nil?
-      type = ::ActiveDirectory.special_fields[class_name.to_sym][name.to_s.downcase.to_sym]
+      type = ::IasActiveDirectory.special_fields[class_name.to_sym][name.to_s.downcase.to_sym]
       type.to_s unless type.nil?
     end
 
 
     def self.decode_field(name, value) # :nodoc:
       type = get_field_type(name)
-      if !type.nil? && ::ActiveDirectory::FieldType.const_defined?(type)
-        return ::ActiveDirectory::FieldType.const_get(type).decode(value)
+      if !type.nil? && ::IasActiveDirectory::FieldType.const_defined?(type)
+        return ::IasActiveDirectory::FieldType.const_get(type).decode(value)
       end
       value
     end
 
     def self.encode_field(name, value) # :nodoc:
       type = get_field_type name
-      if !type.nil? && ::ActiveDirectory::FieldType.const_defined?(type)
-        return ::ActiveDirectory::FieldType.const_get(type).encode(value)
+      if !type.nil? && ::IasActiveDirectory::FieldType.const_defined?(type)
+        return ::IasActiveDirectory::FieldType.const_get(type).encode(value)
       end
       value
     end
