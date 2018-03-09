@@ -8,7 +8,7 @@ RSpec.describe IasActiveDirectory do
   end
 
   describe 'concerning module attributes' do
-    it 'has an attribute for @@special_fields' do
+    it 'has an attribute for @special_fields' do
       expect { IasActiveDirectory.special_fields }.not_to raise_error
     end
 

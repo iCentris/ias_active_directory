@@ -5,11 +5,44 @@ require 'ias_active_directory/version'
 # External Gem Dependencies
 require 'net/ldap'
 require 'bindata'
+require 'time'
 
 require 'ias_active_directory/sid'
 require 'ias_active_directory/base'
+require 'ias_active_directory/container'
+require 'ias_active_directory/member'
+require 'ias_active_directory/user'
+require 'ias_active_directory/group'
 
-# TODO: Add methods that return all the binary fields
+# Include all our specified field types
+%w[
+  password
+  binary
+  date
+  timestamp
+  dn_array
+  user_dn_array
+  group_dn_array
+  member_dn_array
+].each do |field_type|
+  require "ias_active_directory/field_type/#{field_type}"
+end
+
+# ==================================================================================================
+# Monkey Patches
+# ==================================================================================================
+Net::LDAP::Entry.class_eval do
+  # If you ever see a value that is contained in this array, is is Binary, so auto decode it for us.
+  def []=(name, value)
+    @myhash[self.class.attribute_name(name)] =
+      if ::IasActiveDirectory.known_binary_fields.include?(name.downcase.to_sym)
+        [value.first.unpack('H*').first.to_s]
+      else
+        Kernel::Array(value)
+      end
+  end
+end
+# ==================================================================================================
 
 # IasActiveDirectory namespace
 # @!attribute special_fields
